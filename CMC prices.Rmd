@@ -1,0 +1,32 @@
+---
+title: "CMC prices"
+author: "Maurice Richard"
+date: "27 januari 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries}
+# Credits to https://github.com/JesseVent/crypto
+
+  library(dplyr)      # data wrangling
+  library(lubridate)  # dates
+  library(magrittr)   # pipelines
+  library(rvest)      # scrape
+  library(knitr)      # kable
+  library(crypto)     # for getCoins 
+
+```
+
+
+
+```{r Scrape CMC}
+
+    df_marketdata <- getCoins()
+    write.csv(df_marketdata, "D:/Users/mauricha/DocumentsGithub/Crypto-Markets.csv", row.names = FALSE)
+
+```
