@@ -12,8 +12,7 @@ output: html_document
     
 ```
 
-
-```{r libraries}
+```{r libraries, warning = FALSE}
 
     #detach("package:plyr", unload=TRUE)
     library(tidyr)      # data wrangling
@@ -26,20 +25,51 @@ output: html_document
 
 ```
 
-
-```{r Load data, cache = TRUE}
+```{r Load data, cache = FALSE}
 
     df_marketdata <- read.csv(file = "Crypto-Markets.csv", stringsAsFactors = FALSE, sep = ";")
+
+    # Change data types
+    df_marketdata$date %<>% as.Date("%d-%m-%Y") 
+
+
+```
+
+First we need to clean the data to make sure we do not start with bad data. Some coins have duplicate rows, for now we exclude these completely.
+
+```{r Cleaning duplicates}
+
+    # Check for duplicate rows in the data
+    duplicates <- df_marketdata %>% group_by(name, date) %>% summarise(count = n()) %>% filter(count != 1)
+    df_marketdata %<>% filter(!name %in% duplicates$name)
+    
+    # excluded the following coins due to duplicates
+    print(table(duplicates$name))
+
+```
+
+Some coins might have missing values. We check for each coin whether it is missing values after the first observed value.
+
+```{r Missing values in timeseries}
+
+
+    df_marketdata %> group_by(name)
+
+    DateRange <- seq(min(df_marketdata$date), max(df_marketdata$date), by = 1) 
+
 
 ```
 
 
-```{r Data preparation}
-
-    df_marketdata$date <- as.Date(df_marketdata$date) 
-
-    check <- df_marketdata %>% group_by(name,date) %>% summarise(rows <- n())
     
+```{r Data preparation}
+ 
+
+
+    test <- df_marketdata %>% filter(name %in% | y>4))
+
+
+    # Calculate rank for each day in the past. 
     df_marketdata        %<>% 
         arrange(ranknow, date)  %>% 
         group_by(ranknow) %>%
@@ -47,14 +77,15 @@ output: html_document
         mutate(percchg = (close - prevclose) / prevclose * 100) %>%
         arrange(ranknow, desc(date))
 
-    head(df_marketdata)
-
     df_marketdata %<>%
         group_by(date) %>% 
         mutate(rank_then = dense_rank(desc(market)))
     
     
 ```
+
+With the CMC data complete and checked we can analyse the market and different crypto coins.
+
 
 ```{r Rank on date}
 
