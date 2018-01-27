@@ -1,0 +1,292 @@
+---
+title: "CMC graphs"
+author: "Maurice Richard"
+date: "27 januari 2018"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+
+    knitr::opts_chunk$set(echo = TRUE)
+    options(scipen=999)
+    
+```
+
+
+```{r libraries}
+
+    #detach("package:plyr", unload=TRUE)
+    library(tidyr)      # data wrangling
+    library(dplyr)      # data wrangling
+    library(lubridate)  # dates
+    library(magrittr)   # pipelines
+    library(knitr)      # kable
+    library(ggplot2)    # plotting
+    library(quantmod)
+
+```
+
+
+```{r Load data, cache = TRUE}
+
+    df_marketdata <- read.csv(file = "Crypto-Markets.csv", stringsAsFactors = FALSE, sep = ";")
+
+```
+
+
+```{r Data preparation}
+
+    df_marketdata$date <- as.Date(df_marketdata$date) 
+
+    check <- df_marketdata %>% group_by(name,date) %>% summarise(rows <- n())
+    
+    df_marketdata        %<>% 
+        arrange(ranknow, date)  %>% 
+        group_by(ranknow) %>%
+        mutate(prevclose = dplyr::lag(close, n = 1, default = NA)) %>%
+        mutate(percchg = (close - prevclose) / prevclose * 100) %>%
+        arrange(ranknow, desc(date))
+
+    head(df_marketdata)
+
+    df_marketdata %<>%
+        group_by(date) %>% 
+        mutate(rank_then = dense_rank(desc(market)))
+    
+    
+```
+
+```{r Rank on date}
+
+    SDate <- "2017/10/01"
+    EDate <- "2017/11/30"
+    hist_line   <- df_marketdata %>% filter(symbol == "FUN")
+    pred_period <- hist_line %>% filter(date >= SDate & date <= EDate)
+    
+    linearMod   <- lm(rank_then ~ date, data = pred_period)
+    rankPred    <- predict(linearMod, pred_period)
+    pred_line   <- data.frame(date = seq(from = as.Date(EDate), 
+                                      to = as.Date(SDate), 
+                                      by = -1),
+                              rank_then = rankPred)
+
+    ggplot()+ 
+      geom_line(data = hist_line, aes(x = date, y = rank_then), colour="black") +
+      geom_line(data = pred_line,  aes(x = date, y = rank_then), colour="red")+
+      scale_y_continuous(limits = c(0, 150))+
+      scale_x_date(date_breaks = '1 month')+
+      ggtitle("Historical rank")+
+      xlab("Date")+
+      ylab("Rank")
+
+   # modelSummary <- summary(linearMod)  # capture model summary as an object
+   # modelCoeffs <- modelSummary$coefficients  # model coefficients
+
+
+
+```
+
+The below table shows the number of days a coin was present in the top 5 since the start of 2017.
+
+```{r Number of coins that reached top 5 in 2017}
+
+  sort(table(df_marketdata[df_marketdata$rank_then <= 5 & df_marketdata$date >= "2017/01/01", ]$symbol), decreasing = TRUE)
+
+```
+
+```{r Gain of top coins}
+
+  top_coins <- c("BTC", "ETH", "LTC", "XMR", "DASH")
+  SDate <- "2017-11-01"
+  EDate <- max(df_marketdata$date, na.rm = TRUE)
+  df_top5 <- df_marketdata %>% 
+      select(symbol, date, market) %>% 
+      filter(symbol %in% top_coins & (date == SDate | date == EDate)) %>% 
+      group_by(symbol) %>% 
+      spread(date, market)
+  
+  colnames(df_top5) <- c("symbol", "start", "end")
+  
+  df_top5$gain <- (df_top5$end / df_top5$start - 1) * 100
+  
+  print(df_top5)
+  
+```
+
+
+```{r Gain of all coins}
+
+  SDate <- "2017-10-01"
+  EDate <- max(df_marketdata$date, na.rm = TRUE)
+  
+  coins <- df_marketdata                    %>% 
+      filter(date == SDate | date == EDate) %>% 
+      group_by(symbol)                      %>% 
+      summarize(count = n())                %>% 
+      filter(count == 2)                    %>%
+      select(symbol)                        
+
+  df_all_gains <- df_marketdata %>% 
+      select(symbol, date, market) %>% 
+      filter(symbol %in% coins$symbol & (date == SDate | date == EDate)) %>% 
+      group_by(symbol) %>% 
+      spread(date, market)
+  
+  colnames(df_all_gains) <- c("symbol", "start", "end")
+  df_all_gains %<>% filter(start > 0 & end > 0)
+  
+  df_all_gains$gain <- (df_all_gains$end / df_all_gains$start - 1) * 100
+  df_all_gains <- df_all_gains[order(df_all_gains$start, decreasing = TRUE), ]
+  
+  print(df_all_gains)
+  
+  
+```
+
+```{r Returns vs Market cap}
+
+     ggplot(df_all_gains[50:100, ],
+        aes(x = log(start), y = gain)) + 
+        geom_point(shape=1)+
+        #geom_text(aes(label=symbol),vjust=1)+
+        scale_y_continuous(limits = c(-50, 400))+
+        ggtitle("")+
+        xlab("Log(Marketcap)")+
+        ylab("Gain")
+
+    mean(df_all_gains$gain[1:10])
+    mean(df_all_gains$gain[11:20])
+    mean(df_all_gains$gain[21:30])
+    mean(df_all_gains$gain[31:40])
+    mean(df_all_gains$gain[41:50])
+    mean(df_all_gains$gain[51:60])
+    mean(df_all_gains$gain[61:70])
+    mean(df_all_gains$gain[71:80])
+    mean(df_all_gains$gain[81:90])
+    mean(df_all_gains$gain[91:100])
+    
+    mean(df_all_gains$gain[1:20])
+    mean(df_all_gains$gain[21:40])
+    mean(df_all_gains$gain[41:60])
+    mean(df_all_gains$gain[61:80])
+    mean(df_all_gains$gain[81:100])
+
+
+```
+
+```{r Max gains}
+
+    df_max_gains <- df_marketdata %>% 
+        select(symbol, date, market) %>% 
+        filter(symbol %in% coins$symbol & (date >= SDate)) %>%
+        group_by(symbol) %>%
+        summarize(start = last(market), max = max(market, na.rm = TRUE))
+    
+    df_max_gains %<>% filter(start > 0 & max > 0)
+    
+    df_max_gains$gain <- (df_max_gains$max / df_max_gains$start - 1) * 100
+    df_max_gains <- df_max_gains[order(df_max_gains$start, decreasing = TRUE), ]
+    
+    print(df_max_gains)
+  
+    mean(df_max_gains$gain[1:20])
+    mean(df_max_gains$gain[21:40])
+    mean(df_max_gains$gain[41:60])
+    mean(df_max_gains$gain[61:80])
+    mean(df_max_gains$gain[81:100])
+  
+```
+
+
+
+
+```{r Select Coin, include = FALSE}
+
+    BTC <- df_marketdata %>% 
+           filter(symbol == "MONA")
+    ETH <- df_marketdata %>% 
+           filter(symbol == "ETH")
+
+```
+
+
+```{r Regular plot, out.width = '200%'}
+    
+    ggplot(BTC,
+        aes(x = date, y = close)) + 
+        geom_bar(stat = "identity")+
+        scale_x_discrete(breaks = seq(0, 3000, 100))+
+        scale_y_continuous(breaks = seq(0, 20000, 1000))+
+        ggtitle("Historical BTC price")+
+        xlab("Date")+
+        ylab("Price in USD")
+
+```
+
+
+```{r Candle plot, out.width = '200%'}
+
+    BTC <- BTC[1:150, ]
+    BTC$date %<>% as.POSIXct(tz = "")  
+    BTC$chg <- ifelse(BTC$close > BTC$open, "up", "dn")
+    BTC$width <- as.numeric(periodicity(BTC$date)[1])
+    BTC$flat_bar <- BTC[, "high"] == BTC[, "low"]
+        
+# Candle chart:
+    pl <- ggplot(BTC, aes(x = date))+
+      geom_linerange(aes(ymin = low, ymax = high)) +
+      theme_bw() +
+      ggtitle("BTC")+
+      xlab("Date")+
+      ylab("Price in $")+
+      geom_rect(aes(xmin = date - width/2 * 0.9, xmax = date + width/2 * 0.9, 
+                    ymin = pmin(open, close), ymax = pmax(open, close), fill = chg)) +
+      guides(fill = FALSE, colour = FALSE) + 
+      scale_fill_manual(values = c("dn" = "darkred", "up" = "darkgreen"))+
+      scale_y_continuous(breaks = seq(0, 20000, 1000))
+    
+  # Handle special case of drawing a flat bar where OHLC = Open:
+    if (any(BTC$flat_bar)) pl <- pl + geom_segment(data = BTC[BTC$flat_bar,], aes(x = date - width / 2 * 0.9, y = close, yend = close, xend = date + width / 2 * 0.9))
+    
+    print(pl)
+       
+```
+ 
+ **Question: How do the different crypto's correlate with each other?**
+ 
+```{r Correlations}
+
+    BTC <- df_marketdata %>% 
+           filter(name == "Bitcoin")
+    ETH <- df_marketdata %>% 
+           filter(name == "IOTA")
+
+    BTC <- BTC[1:156, ]
+    ETH <- ETH[1:156, ]
+
+    ETH %<>% 
+        arrange(ranknow, date)  %>% 
+        mutate(prevclose = dplyr::lag(close, n = 1, default = NA)) %>%
+        mutate(percchg = (close - prevclose) / prevclose * 100) %>%
+        arrange(ranknow, desc(date))
+    
+    ETH$percchg<- ifelse(is.na(ETH$percchg), 0, ETH$percchg) 
+    scatter <- bind_rows(ETH[ ,c("date", "name", "percchg")], BTC[,c("date", "name", "percchg")])
+    scatter2 <- scatter %>% spread(key = name, value = percchg)
+    cor(scatter2$Bitcoin, scatter2$IOTA)
+
+```
+
+
+```{r Scatterplot}
+     ggplot(scatter,
+        aes(x = date, y = percchg)) + 
+        geom_bar(aes(fill = name), stat = "identity", position = "dodge")+
+        scale_x_discrete(breaks = seq(0, 3000, 100))+
+        scale_y_continuous(breaks = seq(0, 20000, 1000))+
+        ggtitle("Daily percentage change in close ")+
+        xlab("Date")+
+        ylab("Daily % change")
+```
+
+ 
