@@ -32,7 +32,6 @@ output: html_document
     # Change data types
     df_marketdata$date %<>% as.Date("%d-%m-%Y") 
 
-
 ```
 
 First we need to clean the data to make sure we do not start with bad data. Some coins have duplicate rows, for now we exclude these completely.
@@ -48,26 +47,25 @@ First we need to clean the data to make sure we do not start with bad data. Some
 
 ```
 
-Some coins might have missing values. We check for each coin whether it is missing values after the first observed value.
+Some coins might have missing values. We check for each coin whether it is missing values after the first observed value, for now we remove all coins that have missing data as they are usually low marketcap.
 
 ```{r Missing values in timeseries}
 
+    keep_coins <- df_marketdata  %>% 
+                  group_by(name) %>% 
+                  summarize(missings = n() - (last(date) - first(date) + 1)) %>% 
+                  filter(missings == 0) %>% 
+                  select(name)
 
-    df_marketdata %> group_by(name)
-
-    DateRange <- seq(min(df_marketdata$date), max(df_marketdata$date), by = 1) 
-
-
+    df_marketdata2 <- df_marketdata %>% filter(name %in% keep_coins$name)
+    
 ```
 
 
     
 ```{r Data preparation}
  
-
-
     test <- df_marketdata %>% filter(name %in% | y>4))
-
 
     # Calculate rank for each day in the past. 
     df_marketdata        %<>% 

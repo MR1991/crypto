@@ -10,14 +10,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-```{r libraries}
+```{r libraries, include = FALSE}
 # Credits to https://github.com/JesseVent/crypto
 
-  library(dplyr)      # data wrangling
-  library(lubridate)  # dates
-  library(magrittr)   # pipelines
-  library(rvest)      # scrape
-  library(knitr)      # kable
   library(crypto)     # for getCoins 
 
 ```
@@ -26,6 +21,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r Scrape CMC}
 
     df_marketdata <- getCoins()
-    write.csv(df_marketdata, "D:/Users/mauricha/DocumentsGithub/Crypto-Markets.csv", row.names = FALSE)
+    write.csv(df_marketdata, "Crypto-Markets.csv", row.names = FALSE)
 
 ```
