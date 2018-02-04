@@ -12,7 +12,7 @@ output: html_document
     
 ```
 
-```{r libraries, warning = FALSE}
+```{r libraries, include = FALSE, warning = FALSE}
 
     #detach("package:plyr", unload=TRUE)
     library(tidyr)      # data wrangling
@@ -34,8 +34,20 @@ output: html_document
 
 ```
 
-First we need to clean the data to make sure we do not start with bad data. Some coins have duplicate rows, for now we exclude these completely.
+We need to clean the data to make sure we do not start with bad data. The first step is to check whether there are any NA's or strange values in the data that we obtained from CMC. 
 
+```{r Check for data quality}
+
+    marketdata_NA <- df_marketdata %>%
+        select_if(function(x) any(is.na(x))) %>% colnames()
+    
+    print(marketdata_NA[-1])
+    print(su)
+    any(df_marketdata, is.na(date))
+    
+```
+
+Some coins have duplicate rows, for now we exclude these completely.
 ```{r Cleaning duplicates}
 
     # Check for duplicate rows in the data
@@ -47,25 +59,31 @@ First we need to clean the data to make sure we do not start with bad data. Some
 
 ```
 
-Some coins might have missing values. We check for each coin whether it is missing values after the first observed value, for now we remove all coins that have missing data as they are usually low marketcap.
+Some coins might have missing values. We check for each coin whether it is missing values after the first observed value.
 
-```{r Missing values in timeseries}
+```{r Missing values at end of timeseries}
 
-    keep_coins <- df_marketdata  %>% 
-                  group_by(name) %>% 
-                  summarize(missings = n() - (last(date) - first(date) + 1)) %>% 
-                  filter(missings == 0) %>% 
-                  select(name)
-
-    df_marketdata2 <- df_marketdata %>% filter(name %in% keep_coins$name)
+    # first and last are reversed because dataset is sorted descending wise for dates
+    coins <- df_marketdata %>% group_by(name) %>% summarise(daysdata = n(), first_date = last(date), last_date = first(date))
+    View(coins[coins$last_date != max(coins$last_date), ])
+    View(table(df_marketdata$date))
+    coins$days <- coins$last_date - coins$first_date + 1
+    coins$missing <- coins$days - coins$daysdata
+    coins %<>% filter(missing != 0)
     
+    missing <- coins[coins$last_date != max(coins$last_date), c(name, )]
+    View(df_marketdata %>% filter(name %in% missing))  
+
 ```
 
 
     
 ```{r Data preparation}
  
+
+
     test <- df_marketdata %>% filter(name %in% | y>4))
+
 
     # Calculate rank for each day in the past. 
     df_marketdata        %<>% 
