@@ -42,7 +42,6 @@ We need to clean the data to make sure we do not start with bad data. The first 
         select_if(function(x) any(is.na(x))) %>% colnames()
     
     print(marketdata_NA[-1])
-    print(su)
     any(df_marketdata, is.na(date))
     
 ```
